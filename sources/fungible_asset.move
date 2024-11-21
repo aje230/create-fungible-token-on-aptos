@@ -78,5 +78,42 @@ module aptos_asset::fungible_asset{
         fungible_asset::burn_from(burn_ref, from_wallet, amount);
     }
 
+    inline fun authorized_borrow_refs(
+    owner: &signer,
+    asset: Object<Metadata>,
+): &ManagedFungibleAsset acquires ManagedFungibleAsset {
+    assert!(object::is_owner(asset, signer::address_of(owner)), error::permission_denied(ENOT_OWNER));
+    borrow_global<ManagedFungibleAsset>(object::object_address(&asset))
+}
+
+public fun withdraw(admin: &signer, amount: u64, from: address): FungibleAsset acquires ManagedFungibleAsset {
+    let asset = get_metadata();
+    let transfer_ref = &authorized_borrow_refs(admin, asset).transfer_ref;
+    let from_wallet = primary_fungible_store::primary_store(from, asset);
+    fungible_asset::withdraw_with_ref(transfer_ref, from_wallet, amount)
+}
+
+public fun deposit(admin: &signer, to: address, fa: FungibleAsset) acquires ManagedFungibleAsset {
+    let asset = get_metadata();
+    let transfer_ref = &authorized_borrow_refs(admin, asset).transfer_ref;
+    let to_wallet = primary_fungible_store::ensure_primary_store_exists(to, asset);
+    fungible_asset::deposit_with_ref(transfer_ref, to_wallet, fa);
+}
+
+public entry fun freeze_account(admin: &signer, account: address) acquires ManagedFungibleAsset {
+    let asset = get_metadata();
+    let transfer_ref = &authorized_borrow_refs(admin, asset).transfer_ref;
+    let wallet = primary_fungible_store::ensure_primary_store_exists(account, asset);
+    fungible_asset::set_frozen_flag(transfer_ref, wallet, true);
+}
+
+public entry fun unfreeze_account(admin: &signer, account: address) acquires ManagedFungibleAsset {
+    let asset = get_metadata();
+    let transfer_ref = &authorized_borrow_refs(admin, asset).transfer_ref;
+    let wallet = primary_fungible_store::ensure_primary_store_exists(account, asset);
+    fungible_asset::set_frozen_flag(transfer_ref, wallet, false);
+}
+
+
 
 }
